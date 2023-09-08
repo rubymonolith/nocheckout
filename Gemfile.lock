@@ -2,6 +2,7 @@ PATH
   remote: .
   specs:
     nocheckout (0.1.0)
+      stripe (>= 7.0)
       zeitwerk (~> 2.0)
 
 GEM
@@ -62,11 +63,13 @@ GEM
     standard-performance (1.1.2)
       lint_roller (~> 1.1)
       rubocop-performance (~> 1.18.0)
+    stripe (9.2.0)
     unicode-display_width (2.4.2)
     zeitwerk (2.6.11)
 
 PLATFORMS
   arm64-darwin-22
+  x86_64-linux
 
 DEPENDENCIES
   nocheckout!
