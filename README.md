@@ -76,10 +76,25 @@ Then, for each product you want to offer, create a controller and inherit the `P
 
 ```ruby
 class PlusPlanPaymentsController < PaymentsController
-  def create_checkout_session
-  end
+    def create_checkout_session
+      Stripe::Checkout::Session.create \
+        customer: stripe_customer,
+        mode: "subscription",
+        payment_method_types: ["card"],
+        line_items: [{
+          price: strip_price,
+          quantity: 1
+        }],
+        allow_promotion_codes: promotion_codes_enabled?,
+        subscription_data: {
+          trial_period_days: trail_days
+        },
+        metadata: { user_id: current_user.id },
+        success_url: callback_url(state: :success),
+        cancel_url: callback_url(state: :cancel)
+    end
 end
-
+```
 
 ## Development
 

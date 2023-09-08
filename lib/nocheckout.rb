@@ -12,3 +12,5 @@ module NoCheckout
 
   class Error < StandardError; end
 end
+
+require "nocheckout/engine"
