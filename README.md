@@ -18,14 +18,68 @@ If bundler is not being used to manage dependencies, install the gem by executin
 
 ## Usage
 
-To implement the checkout:
+This library comes with two controllers, both map closely to their respective Stripe docs.
 
-```
-class PaymentsController < NoCheckout::PaymentsController
-  STRIPE_PUBLIC_KEY = "pk_..."
-  STRIPE_PRIVATE_KEY = "sk_..."
+### Webhooks Controller
+
+[Stripe Webhooks](https://stripe.com/docs/webhooks) are extensive and keep your application up-to-date with what Stripe sees. In this example, we'll look at how to handle a subscriptioh that's expiring to update a User record in our database.
+
+```ruby
+class StripesController < NoCheckout::Stripe::WebhooksController
+  STRIPE_SIGNING_SECRET = ENV["STRIPE_SIGNING_SECRET"]
+
+  protected
+
+  def customer_subscription_created
+    user.subscription_expires_at data.current_period_end
+  end
+
+  def customer_subscription_updated
+    user.subscription_expires_at data.current_period_end
+  end
+
+  def customer_subscription_deleted
+    user.subscription_expires_at Time.now
+  end
+
+  def user
+    @user ||= User.find data.customer
+  end
 end
 ```
+
+### Checkouts Controller
+
+First you need to create a base Payments controller that includes credentials and how a customer is created.
+
+```ruby
+class PaymentsController < NoCheckout::Stripe::PaymentsController
+  STRIPE_PUBLIC_KEY = ENV["STRIPE_PUBLIC_KEY"]
+  STRIPE_PRIVATE_KEY = ENV["STRIPE_PRIVATE_KEY"]
+
+  protected
+  def customer_id
+    user.id
+  end
+
+  def create_customer
+    Stripe::Customer.create(
+      id: customer_id,
+      name: user.name,
+      email: user.email
+    )
+  end
+end
+```
+
+Then, for each product you want to offer, create a controller and inherit the `PaymentsController`
+
+```ruby
+class PlusPlanPaymentsController < PaymentsController
+  def create_checkout_session
+  end
+end
+
 
 ## Development
 
