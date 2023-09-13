@@ -1,5 +1,7 @@
 # NoCheckout
 
+[![Gem Version](https://badge.fury.io/rb/nocheckout.svg)](https://badge.fury.io/rb/nocheckout) [![Tests](https://github.com/rubymonolith/nocheckout/actions/workflows/main.yml/badge.svg)](https://github.com/rubymonolith/nocheckout/actions/workflows/main.yml)
+
 > [!IMPORTANT]
 > This project is a work in progress. This README was written to better understand the implementation for developers. **Some of the APIs may not have yet been implemented, renamed, or removed**. When the API settles down and is running in production for a while, a 1.0 release will be cut and this notice removed.
 
