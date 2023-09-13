@@ -1,5 +1,5 @@
 module NoCheckout::Stripe
-  class WebhooksController < WebhooksController
+  class WebhooksController < NoCheckout::WebhooksController
     STRIPE_SIGNING_SECRET = ENV["STRIPE_SIGNING_SECRET"]
 
     rescue_from JSON::ParserError, with: :invalid_payload
