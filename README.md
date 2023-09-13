@@ -4,7 +4,7 @@ NoCheckout is a set of Rails controllers that does the least amount possible to 
 
 How does it do the least amount possible? It sends your users down the [Stripe Checkout](https://stripe.com/docs/api/checkout/sessions) path for buying stuff, then sends them back to your site. There's also a StripeWebhooks controller that handles Stripe's callbacks.
 
-That's it! You don't even have to include the `stripe.js` file on your website, which means your users get a faster more private browsing session.
+That's it! You don't even have to include the `stripe.js` file on your website, which means your users experience a faster, more private browsing session.
 
 ## Installation
 
@@ -16,13 +16,65 @@ If bundler is not being used to manage dependencies, install the gem by executin
 
     $ gem install nocheckout
 
+## Get a Stripe API key
+
+Before you do anything you'll need to go to https://dashboard.stripe.com/test/apikeys and get the "Secret Key". You can set the `STRIPE_SECRET_KEY` environment variable or create an initializer using your configuration manager of choice:
+
+```ruby
+# Set the API key in ./config/initializers/stripe.rb
+Stripe.api_key = Rails.configuration.stripe[:secret_key]
+```
+
 ## Usage
 
 This library comes with two controllers, both map closely to their respective Stripe docs.
 
+### Checkout Sessions Controller
+
+[Stripe Checkout Sessions](https://stripe.com/docs/api/checkout/sessions) send users from your website to a branded stripe.com page where they can enter their credit card details and complete the purchase. Once the purchase is complete, the user is redirected back to your website.
+
+The NoCheckout::CheckoutSessionsController handles the interface between Stripe and your Rails application and tries to be as small as possible.
+
+To get started, create a base CheckoutSessionsController that maps the Users from your application with [Stripe Customers](https://stripe.com/docs/api/customers).
+
+```ruby
+class CheckoutSessionsController < NoCheckout::Stripe::CheckoutSessionsController
+  protected
+    def customer_id
+      user.id
+    end
+
+    def create_customer
+      Stripe::Customer.create(
+        id: customer_id,
+        name: user.name,
+        email: user.email
+      )
+    end
+end
+```
+
+Then, for each product you want to offer, create a controller and inherit the `CheckoutSessionsController`.
+
+```ruby
+class PlusCheckoutSessionsController < PaymentsController
+  STRIPE_PRICE = "price_..."
+
+  protected
+    def create_checkout_session
+      create_stripe_checkout_session line_items: [{
+        price: STRIPE_PRICE,
+        quantity: 1
+      }]
+    end
+end
+```
+
+There's a lot of different ways you can wire up the controllers depending on how many Stripe prices are in your application. This README assumes you're selling just a few products, so the prices are hard coded as constants in the controller. This could easily be populated from a database.
+
 ### Webhooks Controller
 
-[Stripe Webhooks](https://stripe.com/docs/webhooks) are extensive and keep your application up-to-date with what Stripe sees. In this example, we'll look at how to handle a subscriptioh that's expiring to update a User record in our database.
+[Stripe Webhooks](https://stripe.com/docs/webhooks) are extensive and keep your application up-to-date with what Stripe. In this example, we'll look at how to handle a subscription that's expiring and update a User record in our database.
 
 ```ruby
 class StripesController < NoCheckout::Stripe::WebhooksController
@@ -45,43 +97,6 @@ class StripesController < NoCheckout::Stripe::WebhooksController
   def user
     @user ||= User.find data.customer
   end
-end
-```
-
-### Checkouts Controller
-
-First you need to create a base Payments controller that includes credentials and how a customer is created.
-
-```ruby
-class PaymentsController < NoCheckout::Stripe::PaymentsController
-  protected
-    def customer_id
-      user.id
-    end
-
-    def create_customer
-      Stripe::Customer.create(
-        id: customer_id,
-        name: user.name,
-        email: user.email
-      )
-    end
-end
-```
-
-Then, for each product you want to offer, create a controller and inherit the `PaymentsController`
-
-```ruby
-class PlusPlanPaymentsController < PaymentsController
-  STRIPE_PRICE = "price_..."
-
-  protected
-    def create_checkout_session
-      create_stripe_checkout_session line_items: [{
-        price: STRIPE_PRICE,
-        quantity: 1
-      }]
-    end
 end
 ```
 
