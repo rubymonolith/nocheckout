@@ -1,10 +1,13 @@
 # NoCheckout
 
-NoCheckout is a set of Rails controllers that does the least amount possible to integrate with Stripe. That might sound lazy at first, but when you read between the lines it means less stuff you have to maintain and less stuff that breaks.
+> [!IMPORTANT]
+> This project is a work in progress. This README was written to better understand the implementation for developers. **Some of the APIs may not have yet been implemented, renamed, or removed**. When the API settles down and is running in production for a while, a 1.0 release will be cut and this notice removed.
 
-How does it do the least amount possible? It sends your users down the [Stripe Checkout](https://stripe.com/docs/api/checkout/sessions) path for buying stuff, then sends them back to your site. There's also a StripeWebhooks controller that handles Stripe's callbacks.
+NoCheckout is a set of Rails controllers that does the least amount possible to integrate with Stripe. That might sound lazy at first, and it is, but if you try to roll your own signup and payment form and keep your Rails database sync'ed with your payment info, you'll quickly find out there's better things in life to worry about. Its best to delegate as much payment collection, processing, and reporting to your payment processor as you can. Fortunately Stripe does a great job sweating all the details in checkout UX and reporting that I'm OK delegating everything out to them.
 
-That's it! You don't even have to include the `stripe.js` file on your website, which means your users experience a faster, more private browsing session.
+This gem does that--it sends your users down the [Stripe Checkout](https://stripe.com/docs/payments/checkout/how-checkout-works) path for buying stuff, then sends them back to your site via the CheckoutSessions controller. There's also a StripeWebhooks controller that handles Stripe's callbacks in a plain 'ol controller. You don't even have to include the `stripe.js` file on your website, which means your users experience a faster, more private browsing session.
+
+That's it! There's not much to it and that's the point.
 
 ## Installation
 
