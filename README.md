@@ -54,21 +54,18 @@ First you need to create a base Payments controller that includes credentials an
 
 ```ruby
 class PaymentsController < NoCheckout::Stripe::PaymentsController
-  STRIPE_PUBLIC_KEY = ENV["STRIPE_PUBLIC_KEY"]
-  STRIPE_PRIVATE_KEY = ENV["STRIPE_PRIVATE_KEY"]
-
   protected
-  def customer_id
-    user.id
-  end
+    def customer_id
+      user.id
+    end
 
-  def create_customer
-    Stripe::Customer.create(
-      id: customer_id,
-      name: user.name,
-      email: user.email
-    )
-  end
+    def create_customer
+      Stripe::Customer.create(
+        id: customer_id,
+        name: user.name,
+        email: user.email
+      )
+    end
 end
 ```
 
@@ -76,22 +73,14 @@ Then, for each product you want to offer, create a controller and inherit the `P
 
 ```ruby
 class PlusPlanPaymentsController < PaymentsController
+  STRIPE_PRICE = "price_..."
+
+  protected
     def create_checkout_session
-      Stripe::Checkout::Session.create \
-        customer: stripe_customer,
-        mode: "subscription",
-        payment_method_types: ["card"],
-        line_items: [{
-          price: strip_price,
-          quantity: 1
-        }],
-        allow_promotion_codes: promotion_codes_enabled?,
-        subscription_data: {
-          trial_period_days: trail_days
-        },
-        metadata: { user_id: current_user.id },
-        success_url: callback_url(state: :success),
-        cancel_url: callback_url(state: :cancel)
+      create_stripe_checkout_session line_items: [{
+        price: STRIPE_PRICE,
+        quantity: 1
+      }]
     end
 end
 ```
@@ -104,7 +93,7 @@ To install this gem onto your local machine, run `bundle exec rake install`. To 
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/nocheckout. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/[USERNAME]/nocheckout/blob/main/CODE_OF_CONDUCT.md).
+Bug reports and pull requests are welcome on GitHub at https://github.com/rubymonolith/nocheckout. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/rubymonolith/nocheckout/blob/main/CODE_OF_CONDUCT.md).
 
 ## License
 
@@ -112,4 +101,4 @@ The gem is available as open source under the terms of the [MIT License](https:/
 
 ## Code of Conduct
 
-Everyone interacting in the NoCheckout project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/[USERNAME]/nocheckout/blob/main/CODE_OF_CONDUCT.md).
+Everyone interacting in the NoCheckout project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/rubymonolith/nocheckout/blob/main/CODE_OF_CONDUCT.md).
