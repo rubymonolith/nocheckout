@@ -1,4 +1,4 @@
-require "nopassword"
+require "nocheckout"
 
 module NoCheckout
   class Engine < ::Rails::Engine
