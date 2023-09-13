@@ -33,7 +33,22 @@ module NoCheckout::Stripe
         # Yuck! I have to do the append at the end because rails params escape the `{CHECKOUT_SESSION_ID}` values
         # to `session_id=%7BCHECKOUT_SESSION_ID%7D`. This will work though, but its def not pretty and feels a tad
         # dangerous.
-        url_for(action: :show, path_only: false, **kwargs).concat("?checkout_session_id={CHECKOUT_SESSION_ID}")
+        concat_unescaped_stripe_checkout_session_id url_for(action: :show, only_path: false, **kwargs)
+      end
+
+      STRIPE_CALLBACK_PARAMETER = "checkout_session_id={CHECKOUT_SESSION_ID}"
+
+      # For some reason Stripe decided to not escape the `{CHECKOUT_SESSION_ID}`, if we try to
+      # pass it through Rails URL builders or the URI object, it will URL encode the value and
+      # not work with stripe. Consequently, we have to do some weirdness here to append the callback.
+      #
+      # More information at https://stripe.com/docs/payments/checkout/custom-success-page#modify-success-url
+      def concat_unescaped_stripe_checkout_session_id(url)
+        if URI(url).query
+          url.concat("&#{STRIPE_CALLBACK_PARAMETER}")
+        else
+          url.concat("?#{STRIPE_CALLBACK_PARAMETER}")
+        end
       end
 
       def success_url
