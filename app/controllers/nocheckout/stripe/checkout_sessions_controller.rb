@@ -1,32 +1,42 @@
 module NoCheckout::Stripe
   class CheckoutSessionsController < ApplicationController
+    # Name of the URL parameter stripe uses for the Checkout Session ID.
+    CHECKOUT_SESSION_ID_KEY = :checkout_session_id
+
     def new
       redirect_to checkout_session.url, allow_other_host: true
     end
 
     protected
       def checkout_session
-        @checkout_session ||= find_or_create_checkout_session
-      end
-
-      def create_checkout_session
-        raise "Implement a method here that returns a Stripe::Checkout::Session"
-      end
-
-      def customer_id
-        current_user.id
+        @checkout_session ||= retrieve_or_create_checkout_session
       end
 
       # Actually creates a Stripe checkout session. The reason I had to create
       # this method is so I could "curry" the values within so the `create_checkout_session`
       # could be a bit more readable and work better with inheritance.
-      def create_stripe_checkout_session(**attributes)
-        Stripe::Checkout::Session.create \
-          mode: "subscription",
-          customer: stripe_customer,
-          success_url: success_url,
-          cancel_url: cancel_url,
-          **attributes
+      def create_checkout_session(**attributes)
+        Stripe::Checkout::Session.create(**with_callback_urls(**attributes))
+      end
+
+      def with_callback_urls(**attributes)
+        attributes.merge success_url: success_url, cancel_url: cancel_url
+      end
+
+      def retrieve_checkout_session(id: checkout_session_id)
+        Stripe::Checkout::Session.retrieve id
+      end
+
+      def checkout_session_id
+        params.fetch CHECKOUT_SESSION_ID_KEY, nil
+      end
+
+      def retrieve_or_create_checkout_session
+        if checkout_session_id.present?
+          retrieve_checkout_session
+        else
+          create_checkout_session
+        end
       end
 
       def callback_url(**kwargs)
@@ -36,7 +46,7 @@ module NoCheckout::Stripe
         concat_unescaped_stripe_checkout_session_id url_for(action: :show, only_path: false, **kwargs)
       end
 
-      STRIPE_CALLBACK_PARAMETER = "checkout_session_id={CHECKOUT_SESSION_ID}"
+      STRIPE_CALLBACK_PARAMETER = "#{CHECKOUT_SESSION_ID_KEY}={CHECKOUT_SESSION_ID}"
 
       # For some reason Stripe decided to not escape the `{CHECKOUT_SESSION_ID}`, if we try to
       # pass it through Rails URL builders or the URI object, it will URL encode the value and
@@ -59,27 +69,9 @@ module NoCheckout::Stripe
         callback_url(state: :cancel)
       end
 
-      def stripe_customer
-        @stripe_customer ||= find_or_create_customer
-      end
-
-      def create_customer
-        Stripe::Customer.create(
-          id: String(customer_id),
-          name: current_user.name,
-          email: current_user.email
-        )
-      end
-
-      def find_or_create_checkout_session
-        if params.key? :checkout_session_id
-          Stripe::Checkout::Session.retrieve params.fetch(:checkout_session_id)
-        else
-          create_checkout_session
-        end
-      end
-
-      def find_or_create_customer
+      # Retrives a customer from Stripe and returns a nil if the customer does not exist (instead)
+      # of raising an exception, because this is not exceptional).
+      def retrieve_customer(id:)
         return nil if customer_id.blank?
 
         begin
@@ -88,12 +80,23 @@ module NoCheckout::Stripe
         rescue Stripe::InvalidRequestError => e
           case e.response.data
             in error: { code: "resource_missing" }
-              create_customer
+              nil
             else
               raise
           end
         end
       end
 
+      # Creates a customer and automatically converts the ID to a string so this
+      # thing doesn't explode into oblivion.
+      def create_customer(id: nil, **attributes)
+        # If an ID is given, stripe insists that its a string.
+        id = String(id) unless id.nil?
+        Stripe::Customer.create(id: id, **attributes)
+      end
+
+      def retrieve_or_create_customer(id:, **attributes)
+        retrieve_customer(id: id) || create_customer(id: id, **attributes)
+      end
   end
 end

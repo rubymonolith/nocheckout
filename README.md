@@ -30,11 +30,7 @@ Before you do anything you'll need to go to https://dashboard.stripe.com/test/ap
 Stripe.api_key = Rails.configuration.stripe[:secret_key]
 ```
 
-## Usage
-
-This library comes with two controllers, both map closely to their respective Stripe docs.
-
-### Checkout Sessions Controller
+## Checkout Sessions Controller
 
 [Stripe Checkout Sessions](https://stripe.com/docs/api/checkout/sessions) send users from your website to a branded stripe.com page where they can enter their credit card details and complete the purchase. Once the purchase is complete, the user is redirected back to your website.
 
@@ -42,19 +38,40 @@ The NoCheckout::CheckoutSessionsController handles the interface between Stripe 
 
 To get started, create a base CheckoutSessionsController that maps the Users from your application with [Stripe Customers](https://stripe.com/docs/api/customers).
 
-```ruby
-class CheckoutSessionsController < NoCheckout::Stripe::CheckoutSessionsController
-  protected
-    def customer_id
-      user.id
-    end
+### Create user record after checkout is complete
 
-    def create_customer
-      Stripe::Customer.create(
-        id: customer_id,
-        name: user.name,
-        email: user.email
-      )
+This approach creates a new user record after the checkout is complete with the name and email they give during the Stripe checkout process.
+
+```ruby
+class PaymentsController < NoCheckout::Stripe::CheckoutSessionsController
+  STRIPE_PRICE = "test_price_..."
+
+  def show
+    # Retrieve info from Stripe
+    customer = Stripe::Customer.retrieve checkout_session.customer
+    subscription = Stripe::Subscription.retrieve checkout_session.subscription
+
+    # Do stuff with Stripe info
+    user = User.find_or_create_by email: customer.email
+    customer.metadata.user_id = user.id
+    customer.save
+    user.name = customer.name
+    user.save!
+
+    # In this example we set the current user to stripe info. This likely
+    # doesn't make sense for your security context, so be careful...
+    self.current_user = user
+    redirect_to root_url
+  end
+
+  protected
+    def create_checkout_session
+      super \
+        mode: "subscription",
+        line_items: [{
+          price: self.class::STRIPE_PRICE,
+          quantity: 1
+        }]
     end
 end
 ```
@@ -64,20 +81,46 @@ Then, for each product you want to offer, create a controller and inherit the `C
 ```ruby
 class PlusCheckoutSessionsController < PaymentsController
   STRIPE_PRICE = "price_..."
-
-  protected
-    def create_checkout_session
-      create_stripe_checkout_session line_items: [{
-        price: STRIPE_PRICE,
-        quantity: 1
-      }]
-    end
 end
 ```
 
 There's a lot of different ways you can wire up the controllers depending on how many Stripe prices are in your application. This README assumes you're selling just a few products, so the prices are hard coded as constants in the controller. This could easily be populated from a database.
 
-### Webhooks Controller
+### Create a user record before checkout is complete
+
+```ruby
+class PaymentsController < NoCheckout::Stripe::CheckoutSessionsController
+  before_action :authorize_user # Loads a current_user
+
+  STRIPE_PRICE = "test_price_..."
+
+  def show
+    customer = Stripe::Customer.retrieve checkout_session.customer
+    subscription = Stripe::Subscription.retrieve checkout_session.subscription
+
+    # Do stuff with Stripe info
+
+    redirect_to root_url
+  end
+
+  protected
+    def create_checkout_session
+      super \
+        mode: "subscription",
+        customer: retrieve_or_create_customer(
+          id: current_user.id,
+          email: current_user.email,
+          name: current_user.name
+        ),
+        line_items: [{
+          price: self.class::STRIPE_PRICE,
+          quantity: 1
+        }]
+    end
+end
+```
+
+## Webhooks Controller
 
 [Stripe Webhooks](https://stripe.com/docs/webhooks) are extensive and keep your application up-to-date with what Stripe. In this example, we'll look at how to handle a subscription that's expiring and update a User record in our database.
 
