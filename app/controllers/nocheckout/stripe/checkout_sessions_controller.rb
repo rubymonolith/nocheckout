@@ -16,11 +16,13 @@ module NoCheckout::Stripe
       # this method is so I could "curry" the values within so the `create_checkout_session`
       # could be a bit more readable and work better with inheritance.
       def create_checkout_session(**attributes)
-        Stripe::Checkout::Session.create(**with_callback_urls(**attributes))
+        Stripe::Checkout::Session.create(**append_callback_urls(**attributes))
       end
 
-      def with_callback_urls(**attributes)
-        attributes.merge success_url: success_url, cancel_url: cancel_url
+      def append_callback_urls(success_url:, cancel_url:, **attributes)
+        attributes.merge \
+          success_url: concat_unescaped_stripe_checkout_session_id(success_url),
+          cancel_url: concat_unescaped_stripe_checkout_session_id(cancel_url)
       end
 
       def retrieve_checkout_session(id: checkout_session_id)
@@ -39,11 +41,8 @@ module NoCheckout::Stripe
         end
       end
 
-      def callback_url(**kwargs)
-        # Yuck! I have to do the append at the end because rails params escape the `{CHECKOUT_SESSION_ID}` values
-        # to `session_id=%7BCHECKOUT_SESSION_ID%7D`. This will work though, but its def not pretty and feels a tad
-        # dangerous.
-        concat_unescaped_stripe_checkout_session_id url_for(action: :show, only_path: false, **kwargs)
+      def callback_url_for(*args, only_path: false, **kwargs)
+        url_for(*args, only_path: only_path, **kwargs)
       end
 
       STRIPE_CALLBACK_PARAMETER = "#{CHECKOUT_SESSION_ID_KEY}={CHECKOUT_SESSION_ID}"
@@ -61,13 +60,13 @@ module NoCheckout::Stripe
         end
       end
 
-      def success_url
-        callback_url(state: :success)
-      end
+      # def success_url
+      #   callback_url(state: :success)
+      # end
 
-      def cancel_url
-        callback_url(state: :cancel)
-      end
+      # def cancel_url
+      #   callback_url(state: :cancel)
+      # end
 
       # Retrives a customer from Stripe and returns a nil if the customer does not exist (instead)
       # of raising an exception, because this is not exceptional).
