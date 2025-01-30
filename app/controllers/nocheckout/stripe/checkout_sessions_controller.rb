@@ -71,10 +71,10 @@ module NoCheckout::Stripe
       # Retrives a customer from Stripe and returns a nil if the customer does not exist (instead)
       # of raising an exception, because this is not exceptional).
       def retrieve_customer(id:)
-        return nil if customer_id.blank?
+        return nil if id.blank?
 
         begin
-          Stripe::Customer.retrieve(String(customer_id))
+          Stripe::Customer.retrieve(String(id))
         # Blurg ... wish Stripe just returned a response object that's not an exception.
         rescue Stripe::InvalidRequestError => e
           case e.response.data
