@@ -128,8 +128,6 @@ end
 class StripesController < NoCheckout::Stripe::WebhooksController
   STRIPE_SIGNING_SECRET = ENV["STRIPE_SIGNING_SECRET"]
 
-  protected
-
   def customer_subscription_created
     user.subscription_expires_at data.current_period_end
   end
