@@ -1,6 +1,10 @@
 # frozen_string_literal: true
 
 require "nocheckout"
+require "stripe"
+
+# Configure Stripe for testing (won't make real requests)
+Stripe.api_key = "sk_test_fake_key_for_testing"
 
 RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure
